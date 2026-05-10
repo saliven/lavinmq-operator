@@ -1,0 +1,48 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.webhook.service.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "lavinmq-operator.labels" . | nindent 4 }}
+spec:
+  ports:
+    - port: {{ .Values.webhook.service.port }}
+      protocol: TCP
+      targetPort: {{ .Values.webhook.service.targetPort }}
+  selector:
+    {{- include "lavinmq-operator.selectorLabels" . | nindent 4 }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "lavinmq-operator.fullname" . }}-validating-webhook-configuration
+  labels:
+    {{- include "lavinmq-operator.labels" . | nindent 4 }}
+  {{- if .Values.webhook.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ .Values.webhook.certManager.certificateName }}
+  {{- end }}
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: {{ .Values.webhook.service.name }}
+        namespace: {{ .Release.Namespace }}
+        path: /validate-cloudamqp-com-v1alpha1-lavinmq
+    failurePolicy: Fail
+    name: vlavinmq.kb.io
+    rules:
+      - apiGroups:
+          - cloudamqp.com
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - lavinmqs
+    sideEffects: None
+{{- end }}

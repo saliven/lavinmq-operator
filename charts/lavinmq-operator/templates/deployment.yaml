@@ -29,11 +29,24 @@ spec:
         - name: manager
           image: {{ include "lavinmq-operator.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ENABLE_WEBHOOKS
+              value: {{ ternary "true" "false" .Values.webhook.enabled | quote }}
           command:
             - /manager
           args:
             - --leader-elect
             - --health-probe-bind-address=:8081
+          {{- if .Values.webhook.enabled }}
+          ports:
+            - containerPort: {{ .Values.webhook.service.targetPort }}
+              name: webhook-server
+              protocol: TCP
+          volumeMounts:
+            - name: cert
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+          {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -53,6 +66,13 @@ spec:
             periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      {{- if .Values.webhook.enabled }}
+      volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: {{ .Values.webhook.certSecretName }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

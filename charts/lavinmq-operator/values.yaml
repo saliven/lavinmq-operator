@@ -13,6 +13,18 @@ fullnameOverride: ""
 serviceAccount:
   name: ""  # defaults to fullname
 
+webhook:
+  enabled: false
+  certSecretName: webhook-server-cert
+  service:
+    name: webhook-service
+    port: 443
+    targetPort: 9443
+  certManager:
+    enabled: false
+    issuerName: selfsigned-issuer
+    certificateName: serving-cert
+
 resources:
   limits:
     cpu: 500m
