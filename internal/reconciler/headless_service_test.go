@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/cloudamqp/lavinmq-operator/internal/controller/utils"
 	"github.com/cloudamqp/lavinmq-operator/internal/reconciler"
 	testutils "github.com/cloudamqp/lavinmq-operator/internal/test_utils"
 
@@ -174,4 +175,70 @@ func TestPortChanges(t *testing.T) {
 		return port.Name == "amqp"
 	})
 	assert.Equal(t, int32(1111), service.Spec.Ports[idx].Port)
+}
+
+func TestSelectorMatchesPodLabels(t *testing.T) {
+	t.Parallel()
+	instance := testutils.GetDefaultInstance(&testutils.DefaultInstanceSettings{})
+	err := testutils.CreateNamespace(t.Context(), k8sClient, instance.Namespace)
+	assert.NoErrorf(t, err, "Failed to create namespace")
+	defer func() { _ = testutils.DeleteNamespace(t.Context(), k8sClient, instance.Namespace) }()
+
+	defer func() { _ = k8sClient.Delete(t.Context(), instance) }()
+
+	assert.NoError(t, k8sClient.Create(t.Context(), instance))
+
+	rc := &reconciler.HeadlessServiceReconciler{
+		ResourceReconciler: &reconciler.ResourceReconciler{
+			Instance: instance,
+			Scheme:   scheme.Scheme,
+			Client:   k8sClient,
+		},
+	}
+
+	_, err = rc.Reconcile(t.Context())
+	assert.NoError(t, err)
+
+	service := &corev1.Service{}
+	assert.NoError(t, k8sClient.Get(t.Context(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, service))
+
+	wantSelector := utils.LabelsForLavinMQ(instance)
+	assert.Equal(t, wantSelector, service.Spec.Selector, "service selector must match StatefulSet pod template labels")
+}
+
+func TestSelectorReconciled(t *testing.T) {
+	t.Parallel()
+	instance := testutils.GetDefaultInstance(&testutils.DefaultInstanceSettings{})
+	err := testutils.CreateNamespace(t.Context(), k8sClient, instance.Namespace)
+	assert.NoErrorf(t, err, "Failed to create namespace")
+	defer func() { _ = testutils.DeleteNamespace(t.Context(), k8sClient, instance.Namespace) }()
+
+	defer func() { _ = k8sClient.Delete(t.Context(), instance) }()
+
+	assert.NoError(t, k8sClient.Create(t.Context(), instance))
+
+	rc := &reconciler.HeadlessServiceReconciler{
+		ResourceReconciler: &reconciler.ResourceReconciler{
+			Instance: instance,
+			Scheme:   scheme.Scheme,
+			Client:   k8sClient,
+		},
+	}
+
+	_, err = rc.Reconcile(t.Context())
+	assert.NoError(t, err)
+
+	// Simulate a manual selector patch (the live workaround) drifting the selector.
+	service := &corev1.Service{}
+	assert.NoError(t, k8sClient.Get(t.Context(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, service))
+	service.Spec.Selector = map[string]string{"app": instance.Name}
+	assert.NoError(t, k8sClient.Update(t.Context(), service))
+
+	// Reconcile should correct the selector back.
+	_, err = rc.Reconcile(t.Context())
+	assert.NoError(t, err)
+
+	assert.NoError(t, k8sClient.Get(t.Context(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, service))
+	wantSelector := utils.LabelsForLavinMQ(instance)
+	assert.Equal(t, wantSelector, service.Spec.Selector, "reconciler must correct a drifted service selector")
 }

@@ -82,7 +82,7 @@ func (b *HeadlessServiceReconciler) newObject() *corev1.Service {
 			Labels:    utils.LabelsForLavinMQ(b.Instance),
 		},
 		Spec: corev1.ServiceSpec{
-			Selector:  b.Instance.Labels,
+			Selector:  utils.LabelsForLavinMQ(b.Instance),
 			ClusterIP: "None",
 			Ports:     servicePorts,
 		},
@@ -106,6 +106,10 @@ func (b *HeadlessServiceReconciler) updateFields(_ context.Context, service *cor
 
 	if !reflect.DeepEqual(service.Spec.Ports, newService.Spec.Ports) {
 		service.Spec.Ports = newService.Spec.Ports
+	}
+
+	if !reflect.DeepEqual(service.Spec.Selector, newService.Spec.Selector) {
+		service.Spec.Selector = newService.Spec.Selector
 	}
 }
 
