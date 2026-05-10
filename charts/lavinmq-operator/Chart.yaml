@@ -1,0 +1,16 @@
+apiVersion: v2
+name: lavinmq-operator
+description: Kubernetes operator for managing LavinMQ instances
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+keywords:
+  - lavinmq
+  - amqp
+  - messaging
+  - operator
+home: https://github.com/cloudamqp/lavinmq-operator
+sources:
+  - https://github.com/cloudamqp/lavinmq-operator
+maintainers:
+  - name: CloudAMQP

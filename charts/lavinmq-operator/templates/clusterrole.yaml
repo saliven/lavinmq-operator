@@ -1,0 +1,37 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "lavinmq-operator.fullname" . }}-manager
+  labels:
+    {{- include "lavinmq-operator.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [configmaps, persistentvolumeclaims, services]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [cloudamqp.com]
+    resources: [lavinmqs]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [cloudamqp.com]
+    resources: [lavinmqs/finalizers]
+    verbs: [update]
+  - apiGroups: [cloudamqp.com]
+    resources: [lavinmqs/status]
+    verbs: [get, patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "lavinmq-operator.fullname" . }}-manager
+  labels:
+    {{- include "lavinmq-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "lavinmq-operator.fullname" . }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "lavinmq-operator.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}

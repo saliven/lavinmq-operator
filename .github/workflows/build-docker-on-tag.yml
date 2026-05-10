@@ -37,6 +37,16 @@ jobs:
         with:
           path: dist/install.yaml
 
+      - name: Package and push Helm chart
+        run: |
+          VERSION="${{ github.ref_name }}"
+          CHART_VERSION="${VERSION#v}"
+          helm package charts/lavinmq-operator \
+            --version "$CHART_VERSION" \
+            --app-version "$VERSION"
+          helm push lavinmq-operator-${CHART_VERSION}.tgz \
+            oci://ghcr.io/${{ github.repository_owner }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
