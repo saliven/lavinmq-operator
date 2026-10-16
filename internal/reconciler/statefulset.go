@@ -22,6 +22,13 @@ import (
 // metricsPort must match metrics_http_port in defaultConfig.
 const metricsPort int32 = 15692
 
+// metricsAnnotations opt the pods into annotation-based Prometheus scraping.
+var metricsAnnotations = map[string]string{
+	"prometheus.io/scrape": "true",
+	"prometheus.io/port":   fmt.Sprintf("%d", metricsPort),
+	"prometheus.io/path":   "/metrics",
+}
+
 type StatefulSetReconciler struct {
 	*ResourceReconciler
 }
@@ -82,6 +89,7 @@ func (b *StatefulSetReconciler) newObject(ctx context.Context) (*appsv1.Stateful
 
 	b.appendSpec(sts)
 	b.appendTlsConfig(sts)
+	setMetricsAnnotations(sts)
 	if err := b.setConfigHashAnnotation(ctx, sts); err != nil {
 		return nil, err
 	}
@@ -285,6 +293,16 @@ func (b *StatefulSetReconciler) appendTlsConfig(sts *appsv1.StatefulSet) {
 	)
 }
 
+func setMetricsAnnotations(sts *appsv1.StatefulSet) {
+	if sts.Spec.Template.ObjectMeta.Annotations == nil {
+		sts.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	}
+
+	for key, value := range metricsAnnotations {
+		sts.Spec.Template.ObjectMeta.Annotations[key] = value
+	}
+}
+
 // Used to check if the configmap has changed and restarts the pods if there are any config changes by setting a annotation.
 func (b *StatefulSetReconciler) setConfigHashAnnotation(ctx context.Context, sts *appsv1.StatefulSet) error {
 	configMap := &corev1.ConfigMap{
@@ -324,6 +342,7 @@ func (b *StatefulSetReconciler) updateFields(ctx context.Context, sts *appsv1.St
 	}
 
 	b.diffTemplate(&sts.Spec.Template.Spec)
+	setMetricsAnnotations(sts)
 
 	if err := b.setConfigHashAnnotation(ctx, sts); err != nil {
 		return err

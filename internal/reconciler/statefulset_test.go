@@ -295,4 +295,50 @@ func TestStsMetricsPort(t *testing.T) {
 		ContainerPort: 15692,
 		Protocol:      corev1.ProtocolTCP,
 	})
+
+	annotations := sts.Spec.Template.Annotations
+	assert.Equal(t, "true", annotations["prometheus.io/scrape"])
+	assert.Equal(t, "15692", annotations["prometheus.io/port"])
+	assert.Equal(t, "/metrics", annotations["prometheus.io/path"])
+}
+
+func TestStsMetricsAnnotationsAddedOnUpdate(t *testing.T) {
+	t.Parallel()
+	instance := testutils.GetDefaultInstance(&testutils.DefaultInstanceSettings{})
+
+	err := testutils.CreateNamespace(t.Context(), k8sClient, instance.Namespace)
+	assert.NoErrorf(t, err, "Failed to create namespace")
+	defer func() { _ = testutils.DeleteNamespace(t.Context(), k8sClient, instance.Namespace) }()
+
+	configMap := createConfigMap(t, instance)
+	defer deleteConfigMap(t, configMap)
+
+	rc := &reconciler.StatefulSetReconciler{
+		ResourceReconciler: &reconciler.ResourceReconciler{
+			Instance: instance,
+			Scheme:   scheme.Scheme,
+			Client:   k8sClient,
+		},
+	}
+
+	err = k8sClient.Create(t.Context(), instance)
+	assert.NoErrorf(t, err, "Failed to create instance")
+
+	_, err = rc.Reconcile(t.Context())
+	assert.NoErrorf(t, err, "Failed to reconcile instance")
+
+	// Simulate a statefulset created by an operator version without the annotations.
+	sts := &appsv1.StatefulSet{}
+	err = k8sClient.Get(t.Context(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, sts)
+	assert.NoErrorf(t, err, "Failed to get statefulset")
+	delete(sts.Spec.Template.Annotations, "prometheus.io/scrape")
+	err = k8sClient.Update(t.Context(), sts)
+	assert.NoErrorf(t, err, "Failed to update statefulset")
+
+	_, err = rc.Reconcile(t.Context())
+	assert.NoErrorf(t, err, "Failed to reconcile instance")
+
+	err = k8sClient.Get(t.Context(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, sts)
+	assert.NoErrorf(t, err, "Failed to get statefulset")
+	assert.Equal(t, "true", sts.Spec.Template.Annotations["prometheus.io/scrape"])
 }
