@@ -51,6 +51,8 @@ func TestDefaultConfig(t *testing.T) {
 	var expectedConfig = `
 			[main]
 			data_dir = /var/lib/lavinmq
+			metrics_http_bind = 0.0.0.0
+			metrics_http_port = 15692
 
 			[mgmt]
 			bind = 0.0.0.0
@@ -76,6 +78,11 @@ func TestDefaultConfig(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, instance.Name, configMap.Name)
 	verifyConfigMapEquality(t, configMap, expectedConfig)
+
+	conf, err := ini.Load([]byte(configMap.Data[reconciler.ConfigFileName]))
+	assert.NoError(t, err)
+	assert.Equal(t, "0.0.0.0", conf.Section("main").Key("metrics_http_bind").Value())
+	assert.Equal(t, "15692", conf.Section("main").Key("metrics_http_port").Value())
 }
 
 func TestCustomConfigPorts(t *testing.T) {
@@ -97,6 +104,8 @@ func TestCustomConfigPorts(t *testing.T) {
 	expectedConfig := `
 	[main]
 	data_dir = /var/lib/lavinmq
+	metrics_http_bind = 0.0.0.0
+	metrics_http_port = 15692
 
 	[mgmt]
 	bind = 0.0.0.0
@@ -151,6 +160,8 @@ func TestDisablingNonTlsPorts(t *testing.T) {
 	expectedConfig := `
 	[main]
 	data_dir = /var/lib/lavinmq
+	metrics_http_bind = 0.0.0.0
+	metrics_http_port = 15692
 
 	[mgmt]
 	bind = 0.0.0.0

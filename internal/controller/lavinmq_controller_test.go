@@ -185,6 +185,7 @@ func TestUpdatingLavinMQ(t *testing.T) {
 			{ContainerPort: 15672, Name: "http", Protocol: "TCP"},
 			{ContainerPort: 1337, Name: "amqp", Protocol: "TCP"},
 			{ContainerPort: 1883, Name: "mqtt", Protocol: "TCP"},
+			{ContainerPort: 15692, Name: "metrics", Protocol: "TCP"},
 		}
 
 		assert.Len(t, resource.Spec.Template.Spec.Containers[0].Ports, len(expectedPorts))

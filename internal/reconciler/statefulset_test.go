@@ -260,3 +260,39 @@ func deleteConfigMap(t *testing.T, configMap *corev1.ConfigMap) {
 	err := k8sClient.Delete(t.Context(), configMap)
 	assert.NoErrorf(t, err, "Failed to delete ConfigMap")
 }
+
+func TestStsMetricsPort(t *testing.T) {
+	t.Parallel()
+	instance := testutils.GetDefaultInstance(&testutils.DefaultInstanceSettings{})
+
+	err := testutils.CreateNamespace(t.Context(), k8sClient, instance.Namespace)
+	assert.NoErrorf(t, err, "Failed to create namespace")
+	defer func() { _ = testutils.DeleteNamespace(t.Context(), k8sClient, instance.Namespace) }()
+
+	configMap := createConfigMap(t, instance)
+	defer deleteConfigMap(t, configMap)
+
+	rc := &reconciler.StatefulSetReconciler{
+		ResourceReconciler: &reconciler.ResourceReconciler{
+			Instance: instance,
+			Scheme:   scheme.Scheme,
+			Client:   k8sClient,
+		},
+	}
+
+	err = k8sClient.Create(t.Context(), instance)
+	assert.NoErrorf(t, err, "Failed to create instance")
+
+	_, err = rc.Reconcile(t.Context())
+	assert.NoErrorf(t, err, "Failed to reconcile instance")
+
+	sts := &appsv1.StatefulSet{}
+	err = k8sClient.Get(t.Context(), types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, sts)
+	assert.NoErrorf(t, err, "Failed to get statefulset")
+
+	assert.Contains(t, sts.Spec.Template.Spec.Containers[0].Ports, corev1.ContainerPort{
+		Name:          "metrics",
+		ContainerPort: 15692,
+		Protocol:      corev1.ProtocolTCP,
+	})
+}

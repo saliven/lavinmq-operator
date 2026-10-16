@@ -19,6 +19,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+// metricsPort must match metrics_http_port in defaultConfig.
+const metricsPort int32 = 15692
+
 type StatefulSetReconciler struct {
 	*ResourceReconciler
 }
@@ -223,6 +226,9 @@ func (b *StatefulSetReconciler) portsFromSpec() []corev1.ContainerPort {
 	if b.Instance.Spec.Config.Mqtt.TlsPort != 0 {
 		ports = appendContainerPort(ports, b.Instance.Spec.Config.Mqtt.TlsPort, "mqtts")
 	}
+
+	// Prometheus metrics, bound to 0.0.0.0 via metrics_http_bind in the default config.
+	ports = appendContainerPort(ports, metricsPort, "metrics")
 
 	return ports
 }

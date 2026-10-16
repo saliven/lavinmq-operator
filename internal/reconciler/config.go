@@ -25,6 +25,8 @@ var (
 	defaultConfig = `
 [main]
 data_dir = /var/lib/lavinmq
+metrics_http_bind = 0.0.0.0
+metrics_http_port = 15692
 
 [mgmt]
 bind = 0.0.0.0
